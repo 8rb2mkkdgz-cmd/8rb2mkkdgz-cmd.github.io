@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор доходности по акциям</title>
+<style>
+  :root[data-theme="dark"]{
+    --bg-1:#0b0e14; --bg-2:#111623; --card:#161c2c; --card-2:#1c2335;
+    --border:#2a3350; --text:#e8ecf7; --muted:#8b93ab;
+    --accent:#e82127; --green:#2ecc71; --red:#ff5b5b; --amber:#f5a623;
+    --input-bg:#0e1320; --shadow:0 10px 30px rgba(0,0,0,.45);
+    --grid-line:#2a3350;
+  }
+  :root[data-theme="light"]{
+    --bg-1:#f4f5f9; --bg-2:#eceef4; --card:#ffffff; --card-2:#f7f8fc;
+    --border:#dde1ec; --text:#1b2033; --muted:#6b7280;
+    --accent:#e82127; --green:#1fa050; --red:#e14343; --amber:#c9820a;
+    --input-bg:#f4f5f9; --shadow:0 10px 25px rgba(30,40,80,.08);
+    --grid-line:#dde1ec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100vh;
+    font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(232,33,39,.12), transparent 40%),
+      radial-gradient(circle at 85% 10%, rgba(87,140,255,.08), transparent 45%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    color:var(--text);
+    padding:16px;
+    transition:background .3s,color .3s;
+  }
+  .wrap{max-width:1200px;margin:0 auto}
+
+  .top-bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+  .toggle{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:4px}
+  .toggle button{border:none;background:transparent;cursor:pointer;min-width:34px;height:30px;padding:0 8px;
+    border-radius:15px;font-size:13px;font-weight:600;color:var(--muted);transition:all .2s}
+  .toggle button.active{background:var(--accent);color:#fff}
+
+  header{text-align:center;margin-bottom:18px}
+  header h1{font-size:clamp(20px,4vw,30px);margin:0 0 6px}
+  header h1 span{color:var(--accent)}
+  header p{color:var(--muted);margin:0;font-size:13px}
+
+  .tickers{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+  .ticker-btn{border:1px solid var(--border);background:var(--input-bg);color:var(--text);
+    padding:8px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:600;transition:all .15s}
+  .ticker-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .ticker-btn:hover{transform:translateY(-1px)}
+
+  .status{text-align:center;font-size:12px;color:var(--muted);min-height:18px;margin-bottom:12px}
+  .status .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);
+    animation:pulse 1s infinite;margin-right:6px;vertical-align:middle}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .grid{display:grid;grid-template-columns:1fr 1.35fr;gap:20px}
+  @media(max-width:1024px){.grid{grid-template-columns:1fr}}
+
+  .card{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);
+    border-radius:12px;padding:20px;box-shadow:var(--shadow)}
+  .card h2{margin:0 0 16px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .card h2 .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
+  label:first-of-type{margin-top:0}
+  input[type="number"],input[type="date"]{width:100%;padding:10px 12px;border-radius:8px;
+    border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:13px;outline:none}
+  input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(232,33,39,.12)}
+
+  .btn{margin-top:16px;width:100%;padding:11px 14px;border:none;border-radius:8px;
+    background:linear-gradient(135deg,var(--accent),#b5171b);color:#fff;font-size:13px;font-weight:600;
+    cursor:pointer;transition:all .15s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(232,33,39,.3)}
+
+  .error{margin-top:12px;padding:8px 10px;border-radius:8px;background:rgba(255,91,91,.1);
+    border:1px solid rgba(255,91,91,.4);color:var(--red);font-size:12px;display:none}
+  .error.show{display:block}
+
+  .result{margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);display:none}
+  .result.show{display:block}
+  .result-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:var(--muted)}
+  .result-row b{color:var(--text)}
+  .result-main{margin-top:8px;padding:12px;border-radius:8px;background:var(--input-bg);
+    border:1px solid var(--border);text-align:center}
+  .result-main .amount{font-size:22px;font-weight:700;margin-bottom:2px}
+  .result-main .percent{font-size:14px;font-weight:600}
+  .positive{color:var(--green)}
+  .negative{color:var(--red)}
+
+  .chart-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .price-now{font-size:12px;color:var(--muted)}
+  .price-now b{color:var(--text);font-size:18px;margin-left:4px}
+
+  .chart-controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .seg{display:flex;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .seg button{border:none;background:transparent;color:var(--muted);padding:6px 12px;font-size:11px;
+    cursor:pointer;transition:all .15s}
+  .seg button.active{background:var(--accent);color:#fff}
+
+  .range-controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+  .range-controls input[type="date"]{width:auto;padding:6px 8px;font-size:11px}
+  .range-controls .apply{border:none;background:var(--accent);color:#fff;padding:7px 12px;
+    border-radius:6px;font-size:11px;cursor:pointer}
+  .range-hint{font-size:11px;color:var(--muted)}
+
+  .chart-container{position:relative;width:100%;min-height:300px}
+  @media(max-width:768px){.chart-container{min-height:230px}}
+  .loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:8px;color:var(--muted);font-size:12px}
+  .spinner{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);
+    border-top-color:var(--accent);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  canvas{width:100%;display:block;cursor:crosshair;border-radius:8px}
+  .tooltip{position:absolute;pointer-events:none;background:var(--input-bg);border:1px solid var(--border);
+    border-radius:6px;padding:6px 10px;font-size:11px;color:var(--text);opacity:0;
+    transform:translate(-50%,-120%);transition:opacity .1s;white-space:nowrap;z-index:10}
+  .tooltip.show{opacity:1}
+
+  .news-section{margin-top:20px;padding-top:14px;border-top:1px dashed var(--border)}
+  .news-section h2{font-size:14px}
+  .news-list{display:flex;flex-direction:column;max-height:360px;overflow-y:auto}
+  .news-item{display:block;padding:10px 2px;border-bottom:1px solid var(--border);
+    text-decoration:none;color:var(--text);transition:background .15s}
+  .news-item:last-child{border-bottom:none}
+  .news-item:hover{background:var(--input-bg)}
+  .news-title{font-size:12px;font-weight:600;margin-bottom:3px;line-height:1.35}
+  .news-meta{font-size:11px;color:var(--muted)}
+  .news-loading{color:var(--muted);font-size:12px;padding:8px 0}
+
+  footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px}
+
+  @media(max-width:768px){
+    body{padding:12px}
+    .card{padding:16px}
+    .ticker-btn{padding:7px 12px;font-size:12px}
+    .seg button{padding:5px 9px;font-size:10px}
+    .range-controls input[type="date"]{font-size:10px}
+  }
+  @media(max-width:480px){
+    .top-bar{justify-content:center}
+    header h1{font-size:20px}
+    .chart-container{min-height:210px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top-bar">
+    <div class="toggle" id="langToggle">
+      <button data-lang="ru" class="active">РУ</button>
+      <button data-lang="en">EN</button>
+    </div>
+    <div class="toggle" id="themeToggle">
+      <button data-theme="dark" class="active" title="Dark">🌙</button>
+      <button data-theme="light" title="Light">☀️</button>
+    </div>
+  </div>
+
+  <header>
+    <h1><span data-i18n="title">Калькулятор доходности по акциям</span></h1>
+    <p data-i18n="subtitle">Рассчитайте доходность инвестиций по реальным котировкам</p>
+  </header>
+
+  <div class="tickers" id="tickerBar">
+    <button class="ticker-btn active" data-symbol="TSLA">Tesla</button>
+    <button class="ticker-btn" data-symbol="AAPL">Apple</button>
+    <button class="ticker-btn" data-symbol="MSFT">Microsoft</button>
+    <button class="ticker-btn" data-symbol="GOOGL">Google</button>
+  </div>
+
+  <div class="status" id="statusBar"></div>
+
+  <div class="grid">
+
+    <section class="card">
+      <h2><span class="dot"></span> <span data-i18n="calc_title">Калькулятор инвестиций</span></h2>
+
+      <label for="amount" data-i18n="label_amount">Сумма инвестиций, $</label>
+      <input type="number" id="amount" min="1" step="0.01" placeholder="1000">
+
+      <label for="buyDate" data-i18n="label_date">Дата покупки</label>
+      <input type="date" id="buyDate">
+
+      <button class="btn" id="calcBtn" data-i18n="btn_calc">Рассчитать доходность</button>
+
+      <div class="error" id="errorBox"></div>
+
+      <div class="result" id="resultBox">
+        <div class="result-row"><span data-i18n="res_buy">Цена на дату покупки:</span> <b id="buyPrice">—</b></div>
+        <div class="result-row"><span data-i18n="res_now">Текущая цена:</span> <b id="nowPrice">—</b></div>
+        <div class="result-row"><span data-i18n="res_shares">Куплено акций:</span> <b id="sharesQty">—</b></div>
+        <div class="result-main">
+          <div class="amount" id="profitAmount">—</div>
+          <div class="percent" id="profitPercent">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="chart-top">
+        <h2 style="margin:0"><span class="dot"></span> <span data-i18n="chart_title">История цены</span></h2>
+        <div class="price-now"><span data-i18n="current">Текущая:</span> <b id="currentPriceLabel">—</b></div>
+      </div>
+
+      <div class="chart-controls">
+        <div class="seg" id="modeSeg">
+          <button data-mode="line" class="active" data-i18n="mode_line">Линия</button>
+          <button data-mode="candle" data-i18n="mode_candle">Свечи</button>
+        </div>
+        <div class="seg" id="rangeSeg">
+          <button data-range="1y">1Y</button>
+          <button data-range="2y">2Y</button>
+          <button data-range="3y">3Y</button>
+          <button data-range="5y" class="active">5Y</button>
+          <button data-range="max">MAX</button>
+        </div>
+      </div>
+
+      <div class="range-controls">
+        <span class="range-hint" data-i18n="custom">Свой диапазон:</span>
+        <input type="date" id="rangeFrom">
+        <span class="range-hint">—</span>
+        <input type="date" id="rangeTo">
+        <button class="apply" id="rangeApplyBtn" data-i18n="btn_show">Показать</button>
+      </div>
+
+      <div class="chart-container">
+        <div class="loader" id="chartLoader">
+          <div class="spinner"></div>
+          <span data-i18n="loading">Загружаем котировки…</span>
+        </div>
+        <canvas id="chart" style="display:none"></canvas>
+        <div class="tooltip" id="tooltip"></div>
+      </div>
+
+      <div class="news-section">
+        <h2><span class="dot"></span> <span data-i18n="news_title">Последние новости</span></h2>
+        <div class="news-list" id="newsList">
+          <div class="news-loading" data-i18n="news_loading">Загружаем новости…</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer data-i18n="footer">© 2026 Калькулятор доходности по акциям</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ================= 1. I18N ================= */
+const i18n = {
+  ru: {
+    title: "Калькулятор доходности по акциям",
+    subtitle: "Рассчитайте доходность инвестиций по реальным котировкам",
+    calc_title: "Калькулятор инвестиций",
+    label_amount: "Сумма инвестиций, $",
+    label_date: "Дата покупки",
+    btn_calc: "Рассчитать доходность",
+    res_buy: "Цена на дату покупки:",
+    res_now: "Текущая цена:",
+    res_shares: "Куплено акций:",
+    chart_title: "История цены",
+    current: "Текущая:",
+    mode_line: "Линия",
+    mode_candle: "Свечи",
+    custom: "Свой диапазон:",
+    btn_show: "Показать",
+    loading: "Загружаем котировки…",
+    news_title: "Последние новости",
+    news_loading: "Загружаем новости…",
+    news_error: "Не удалось загрузить новости. Попробуйте позже.",
+    footer: "© 2026 Калькулятор доходности по акциям",
+    status_loading: "Загружаем данные",
+    status_retry: "Повторная попытка загрузки…",
+    err_amount: "Введите корректную сумму инвестиций.",
+    err_date: "Выберите дату покупки.",
+    err_range: "Дата должна быть в диапазоне",
+    err_nodata: "Данные ещё загружаются, подождите.",
+    err_custom: "Проверьте корректность диапазона дат.",
+    shares_unit: "шт.",
+    total_word: "итого",
+    return_word: "доходности"
+  },
+  en: {
+    title: "Stock Return Calculator",
+    subtitle: "Calculate your investment returns with real market data",
+    calc_title: "Investment Calculator",
+    label_amount: "Investment amount, $",
+    label_date: "Purchase date",
+    btn_calc: "Calculate return",
+    res_buy: "Price at purchase date:",
+    res_now: "Current price:",
+    res_shares: "Shares bought:",
+    chart_title: "Price History",
+    current: "Current:",
+    mode_line: "Line",
+    mode_candle: "Candles",
+    custom: "Custom range:",
+    btn_show: "Show",
+    loading: "Loading quotes…",
+    news_title: "Latest News",
+    news_loading: "Loading news…",
+    news_error: "Failed to load news. Please try later.",
+    footer: "© 2026 Stock Return Calculator",
+    status_loading: "Loading data",
+    status_retry: "Retrying…",
+    err_amount: "Enter a valid investment amount.",
+    err_date: "Select a purchase date.",
+    err_range: "Date must be within",
+    err_nodata: "Data is still loading, please wait.",
+    err_custom: "Please check the date range.",
+    shares_unit: "pcs",
+    total_word: "total",
+    return_word: "return"
+  }
+};
+
+/* ================= 2. CONFIG & STATE ================= */
+const TD_KEY = "5819f6d0541a4e4f891c986d0b29cd3a";
+const START_DATE = "2018-01-01";
+const NEWS_QUERY = {
+  TSLA: { ru: "Tesla акции", en: "Tesla stock" },
+  AAPL: { ru: "Apple акции", en: "Apple stock" },
+  MSFT: { ru: "Microsoft акции", en: "Microsoft stock" },
+  GOOGL: { ru: "Google акции", en: "Google stock" }
+};
+
+let currentLang = "ru";
+let currentTheme = "dark";
+let currentTicker = "TSLA";
+let chartMode = "line";
+let masterData = [];     // полная история с 2018 (недельные свечи)
+let displayData = [];    // то, что показано на графике (после фильтра)
+let customRange = null;  // {from, to} если задан свой диапазон
+let CURRENT_PRICE = 0;
+let CURRENT_DATE = "";
+let loadGen = 0;         // защита от гонок при быстрой смене тикера
+let newsGen = 0;
+let retryTimer = null;
+let retryCount = 0;
+
+try { currentLang = localStorage.getItem("sc_lang") || "ru"; } catch(e) {}
+try { currentTheme = localStorage.getItem("sc_theme") || "dark"; } catch(e) {}
+
+/* ================= 3. DOM ================= */
+const $ = (id) => document.getElementById(id);
+const statusBar = $("statusBar");
+const chartLoader = $("chartLoader");
+const canvas = $("chart");
+const ctx = canvas.getContext("2d");
+const tooltip = $("tooltip");
+const errorBox = $("errorBox");
+const resultBox = $("resultBox");
+
+function t(key) {
+  return (i18n[currentLang] && i18n[currentLang][key]) || i18n.ru[key] || key;
+}
+
+/* ================= 4. LANGUAGE ================= */
+function applyLang(lang) {
+  currentLang = lang;
+  try { localStorage.setItem("sc_lang", lang); } catch(e) {}
+  document.documentElement.lang = lang;
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+  });
+  document.querySelectorAll("#langToggle button").forEach(b => {
+    b.classList.toggle("active", b.dataset.lang === lang);
+  });
+}
+
+$("langToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-lang]");
+  if (!btn || btn.dataset.lang === currentLang) return;
+  applyLang(btn.dataset.lang);
+  loadNews(currentTicker); // новости на новом языке
+});
+
+/* ================= 5. THEME ================= */
+function applyTheme(theme) {
+  currentTheme = theme;
+  try { localStorage.setItem("sc_theme", theme); } catch(e) {}
+  document.documentElement.setAttribute("data-theme", theme);
+  document.querySelectorAll("#themeToggle button").forEach(b => {
+    b.classList.toggle("active", b.dataset.theme === theme);
+  });
+  drawChart(); // перерисовка с цветами новой темы
+}
+
+$("themeToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-theme]");
+  if (!btn) return;
+  applyTheme(btn.dataset.theme);
+});
+
+/* ================= 6. CACHE (IndexedDB, TTL 1 час) ================= */
+let db = null;
+function initDB() {
+  return new Promise((resolve) => {
+    if (!("indexedDB" in window)) { resolve(null); return; }
+    const req = indexedDB.open("StockCalcDB", 1);
+    req.onupgradeneeded = (ev) => {
+      const d = ev.target.result;
+      if (!d.objectStoreNames.contains("series")) d.createObjectStore("series", { keyPath: "symbol" });
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => resolve(null);
+  });
+}
+function cacheGet(symbol) {
+  return new Promise((resolve) => {
+    if (!db) { resolve(null); return; }
+    try {
+      const req = db.transaction("series", "readonly").objectStore("series").get(symbol);
+      req.onsuccess = () => {
+        const r = req.result;
+        if (r && Date.now() - r.ts < 3600000) resolve(r.data); else resolve(null);
+      };
+      req.onerror = () => resolve(null);
+    } catch(e) { resolve(null); }
+  });
+}
+function cachePut(symbol, data) {
+  if (!db) return;
+  try {
+    db.transaction("series", "readwrite").objectStore("series").put({ symbol, data, ts: Date.now() });
+  } catch(e) {}
+}
+
+/* ================= 7. TWELVE DATA API ================= */
+async function fetchSeries(symbol) {
+  const url = "https://api.twelvedata.com/time_series?symbol=" + symbol +
+    "&interval=1week&start_date=" + START_DATE +
+    "&order=ASC&outputsize=5000&apikey=" + TD_KEY;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const json = await res.json();
+  if (json.status === "error" || !json.values) throw new Error(json.message || "no data");
+  return json.values.map(v => ({
+    d: v.datetime.slice(0, 10),
+    o: parseFloat(v.open),
+    h: parseFloat(v.high),
+    l: parseFloat(v.low),
+    c: parseFloat(v.close)
+  })).filter(p => p.d && !isNaN(p.c)).sort((a, b) => a.d.localeCompare(b.d));
+}
+
+async function fetchQuote(symbol) {
+  const url = "https://api.twelvedata.com/quote?symbol=" + symbol + "&apikey=" + TD_KEY;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const j = await res.json();
+  const p = parseFloat(j.close);
+  if (isNaN(p)) throw new Error("bad quote");
+  return p;
+}
+
+/* ================= 8. DATA LOADING (авто-повтор до появления графика) ================= */
+function setStatus(text, spinning) {
+  statusBar.innerHTML = text ? ((spinning ? '<span class="pulse"></span>' : "") + text) : "";
+}
+
+function updatePriceLabel() {
+  $("currentPriceLabel").textContent = CURRENT_PRICE
+    ? "$" + CURRENT_PRICE.toFixed(2) + (CURRENT_DATE ? " (" + CURRENT_DATE + ")" : "")
+    : "—";
+}
+
+async function loadData(symbol) {
+  const gen = ++loadGen;
+  currentTicker = symbol;
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+  setStatus(t("status_loading") + " " + symbol + "…", true);
+  chartLoader.style.display = "flex";
+  canvas.style.display = "none";
+  CURRENT_PRICE = 0; CURRENT_DATE = "";
+  updatePriceLabel();
+
+  // 1) Текущая цена — параллельно, не блокирует график
+  fetchQuote(symbol).then(p => {
+    if (gen !== loadGen) return;
+    CURRENT_PRICE = p;
+    CURRENT_DATE = new Date().toISOString().slice(0, 10);
+    updatePriceLabel();
+  }).catch(() => {});
+
+  // 2) Кеш — мгновенный показ, если есть
+  const cached = await cacheGet(symbol);
+  if (cached && cached.length > 1 && gen === loadGen) {
+    masterData = cached;
+    onDataReady(gen);
+  }
+
+  // 3) Свежие данные
+  try {
+    const fresh = await fetchSeries(symbol);
+    if (gen !== loadGen) return;
+    masterData = fresh;
+    cachePut(symbol, fresh);
+    retryCount = 0;
+    onDataReady(gen);
+  } catch (e) {
+    console.warn("load error:", e.message);
+    if (gen !== loadGen) return;
+    if (!cached) scheduleRetry(symbol, gen); // авто-повтор, пока не выдан график
+  }
+}
+
+function scheduleRetry(symbol, gen) {
+  if (retryCount >= 8) { setStatus("⚠ " + t("status_retry"), false); return; }
+  retryCount++;
+  setStatus(t("status_retry") + " (" + retryCount + ")", true);
+  retryTimer = setTimeout(() => {
+    if (gen === loadGen) loadData(symbol);
+  }, 5000);
+}
+
+function onDataReady(gen) {
+  if (gen !== loadGen || !masterData.length) return;
+  const first = masterData[0].d;
+  const last = masterData[masterData.length - 1].d;
+
+  if (!CURRENT_PRICE) {
+    CURRENT_PRICE = masterData[masterData.length - 1].c;
+    CURRENT_DATE = last;
+    updatePriceLabel();
+  }
+  const buyDate = $("buyDate");
+  buyDate.min = first; buyDate.max = last;
+  $("rangeFrom").min = first; $("rangeFrom").max = last;
+  $("rangeTo").min = first; $("rangeTo").max = last;
+
+  applyRangeFilter();          // ВАЖНО: применяем ТЕКУЩИЙ выбранный диапазон
+  chartLoader.style.display = "none";
+  canvas.style.display = "block";
+  drawChart();
+  setStatus("");
+}
+
+/* ================= 9. RANGE FILTER ================= */
+function applyRangeFilter() {
+  if (!masterData.length) { displayData = []; return; }
+  const lastISO = masterData[masterData.length - 1].d;
+  let fromISO, toISO = lastISO;
+
+  if (customRange) {
+    fromISO = customRange.from;
+    toISO = customRange.to;
+  } else {
+    const activeBtn = document.querySelector("#rangeSeg button.active");
+    const range = activeBtn ? activeBtn.dataset.range : "5y";
+    if (range === "max") {
+      fromISO = masterData[0].d;
+    } else {
+      const years = { "1y": 1, "2y": 2, "3y": 3, "5y": 5 }[range] || 5;
+      const dt = new Date(lastISO);
+      dt.setFullYear(dt.getFullYear() - years);
+      fromISO = dt.toISOString().slice(0, 10);
+      if (fromISO < masterData[0].d) fromISO = masterData[0].d;
+    }
+  }
+
+  displayData = masterData.filter(p => p.d >= fromISO && p.d <= toISO);
+  if (displayData.length < 2) displayData = masterData.slice();
+  $("rangeFrom").value = displayData[0].d;
+  $("rangeTo").value = displayData[displayData.length - 1].d;
+}
+
+$("rangeSeg").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-range]");
+  if (!btn || !masterData.length) return;
+  document.querySelectorAll("#rangeSeg button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  customRange = null;          // пресет отменяет свой диапазон
+  applyRangeFilter();
+  drawChart();
+});
+
+$("rangeApplyBtn").addEventListener("click", () => {
+  const from = $("rangeFrom").value;
+  const to = $("rangeTo").value;
+  if (!from || !to || from >= to) {
+    errorBox.textContent = t("err_custom");
+    errorBox.classList.add("show");
+    return;
+  }
+  errorBox.classList.remove("show");
+  customRange = { from, to };
+  document.querySelectorAll("#rangeSeg button").forEach(b => b.classList.remove("active"));
+  applyRangeFilter();
+  drawChart();
+});
+
+/* ================= 10. CHART (canvas, line + candles) ================= */
+function themeColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+let chartPoints = [];
+
+function drawChart() {
+  if (!displayData.length || canvas.style.display === "none") return;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width < 10) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = rect.width;
+  const h = window.innerWidth < 769 ? 230 : 300;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.height = h + "px";
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  if (chartMode === "candle") drawCandles(w, h);
+  else drawLine(w, h);
+}
+
+function computeScales(w, h) {
+  const pad = { top: 16, right: 14, bottom: 28, left: 52 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+  const highs = displayData.map(p => p.h);
+  const lows = displayData.map(p => p.l);
+  const minP = Math.min.apply(null, lows) * 0.96;
+  const maxP = Math.max.apply(null, highs) * 1.04;
+  const n = displayData.length;
+  const xFor = (i) => pad.left + (n === 1 ? cw / 2 : (i / (n - 1)) * cw);
+  const yFor = (price) => pad.top + ch - ((price - minP) / (maxP - minP)) * ch;
+  return { pad, cw, ch, minP, maxP, xFor, yFor };
+}
+
+function drawGrid(w, h, sc) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = "11px Segoe UI, sans-serif";
+  ctx.lineWidth = 0.8;
+  const grid = themeColor("--grid-line");
+  const muted = themeColor("--muted");
+
+  // горизонтальная сетка и цены
+  for (let i = 0; i <= 5; i++) {
+    const price = sc.minP + (sc.maxP - sc.minP) * (i / 5);
+    const y = sc.yFor(price);
+    ctx.beginPath();
+    ctx.moveTo(sc.pad.left, y);
+    ctx.lineTo(w - sc.pad.right, y);
+    ctx.strokeStyle = grid;
+    ctx.globalAlpha = 0.4;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = muted;
+    ctx.textAlign = "right";
+    ctx.fillText("$" + price.toFixed(0), sc.pad.left - 6, y + 4);
+  }
+
+  /* Подписи оси X:
+     - короткий период (до ~14 месяцев): метки месяцев "ММ.ГГ"
+     - длинный период: год ПО ЦЕНТРУ своего отрезка, коротко "18","19"… */
+  ctx.fillStyle = muted;
+  ctx.textAlign = "center";
+  const spanDays = (new Date(displayData[displayData.length - 1].d) - new Date(displayData[0].d)) / 86400000;
+
+  if (spanDays <= 430) {
+    const step = Math.max(1, Math.floor(displayData.length / 6));
+    let lastX = -Infinity;
+    for (let i = 0; i < displayData.length; i += step) {
+      const x = sc.xFor(i);
+      if (x - lastX < 44) continue;
+      lastX = x;
+      const dparts = displayData[i].d.split("-");
+      ctx.fillText(dparts[1] + "." + dparts[0].slice(2), x, h - 8);
+    }
+  } else {
+    const groups = {};
+    displayData.forEach((p, i) => {
+      const y = p.d.slice(0, 4);
+      if (!groups[y]) groups[y] = [];
+      groups[y].push(i);
+    });
+    const years = Object.keys(groups).sort();
+    const useShort = years.length > 3;
+    let lastX = -Infinity;
+    years.forEach(y => {
+      const idxs = groups[y];
+      const mid = idxs[Math.floor(idxs.length / 2)]; // центр отрезка года
+      const x = sc.xFor(mid);
+      if (x - lastX < 34) return;                    // не наезжаем на соседний год
+      lastX = x;
+      ctx.fillText(useShort ? y.slice(2) : y, x, h - 8);
+    });
+  }
+}
+
+function drawLine(w, h) {
+  chartPoints = [];
+  const sc = computeScales(w, h);
+  drawGrid(w, h, sc);
+  const accent = themeColor("--accent");
+
+  const grad = ctx.createLinearGradient(0, sc.pad.top, 0, sc.pad.top + sc.ch);
+  grad.addColorStop(0, "rgba(232,33,39,0.22)");
+  grad.addColorStop(1, "rgba(232,33,39,0)");
+
+  ctx.beginPath();
+  displayData.forEach((p, i) => {
+    const x = sc.xFor(i), y = sc.yFor(p.c);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(sc.xFor(displayData.length - 1), sc.pad.top + sc.ch);
+  ctx.lineTo(sc.xFor(0), sc.pad.top + sc.ch);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.beginPath();
+  displayData.forEach((p, i) => {
+    const x = sc.xFor(i), y = sc.yFor(p.c);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    chartPoints.push({ x, y, p });
+  });
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  const li = displayData.length - 1;
+  ctx.beginPath();
+  ctx.arc(sc.xFor(li), sc.yFor(displayData[li].c), 4, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = accent;
+  ctx.stroke();
+}
+
+function drawCandles(w, h) {
+  chartPoints = [];
+  const sc = computeScales(w, h);
+  drawGrid(w, h, sc);
+  const green = themeColor("--green");
+  const red = themeColor("--red");
+  const slot = displayData.length > 1 ? sc.xFor(1) - sc.xFor(0) : 20;
+  const bw = Math.max(1.5, Math.min(10, slot * 0.6));
+
+  displayData.forEach((p, i) => {
+    const x = sc.xFor(i);
+    const color = p.c >= p.o ? green : red;
+    ctx.beginPath();
+    ctx.moveTo(x, sc.yFor(p.h));
+    ctx.lineTo(x, sc.yFor(p.l));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+    const yO = sc.yFor(p.o), yC = sc.yFor(p.c);
+    ctx.fillStyle = color;
+    ctx.fillRect(x - bw / 2, Math.min(yO, yC), bw, Math.max(1, Math.abs(yC - yO)));
+    chartPoints.push({ x, y: sc.yFor(p.c), p });
+  });
+}
+
+/* Tooltip */
+canvas.addEventListener("mousemove", (e) => {
+  if (!chartPoints.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  let best = chartPoints[0], bd = Math.abs(best.x - mx);
+  for (const pt of chartPoints) {
+    const d = Math.abs(pt.x - mx);
+    if (d < bd) { bd = d; best = pt; }
+  }
+  tooltip.style.left = best.x + "px";
+  tooltip.style.top = best.y + "px";
+  const p = best.p;
+  tooltip.innerHTML = chartMode === "candle"
+    ? "<b>" + p.d + "</b><br>O:" + p.o.toFixed(2) + " H:" + p.h.toFixed(2) + "<br>L:" + p.l.toFixed(2) + " C:" + p.c.toFixed(2)
+    : "<b>" + p.d + "</b><br>$" + p.c.toFixed(2);
+  tooltip.classList.add("show");
+});
+canvas.addEventListener("mouseleave", () => tooltip.classList.remove("show"));
+window.addEventListener("resize", drawChart);
+
+$("modeSeg").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-mode]");
+  if (!btn) return;
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  chartMode = btn.dataset.mode;
+  drawChart();
+});
+
+/* ================= 11. TICKERS ================= */
+$("tickerBar").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-symbol]");
+  if (!btn || btn.dataset.symbol === currentTicker) return;
+  document.querySelectorAll(".ticker-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  errorBox.classList.remove("show");
+  resultBox.classList.remove("show");
+  loadData(btn.dataset.symbol);   // диапазон сохранится: applyRangeFilter читает активную кнопку
+  loadNews(btn.dataset.symbol);   // новости переключаются вместе с акцией
+});
+
+/* ================= 12. CALCULATOR ================= */
+function nearestPoint(dateStr) {
+  const target = new Date(dateStr).getTime();
+  let best = masterData[0];
+  let bd = Math.abs(new Date(best.d).getTime() - target);
+  for (const p of masterData) {
+    const d = Math.abs(new Date(p.d).getTime() - target);
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best;
+}
+
+$("calcBtn").addEventListener("click", () => {
+  errorBox.classList.remove("show");
+  resultBox.classList.remove("show");
+
+  if (!masterData.length || !CURRENT_PRICE) {
+    errorBox.textContent = t("err_nodata");
+    errorBox.classList.add("show");
+    return;
+  }
+  const amount = parseFloat($("amount").value);
+  const dateVal = $("buyDate").value;
+  if (!amount || amount <= 0) {
+    errorBox.textContent = t("err_amount");
+    errorBox.classList.add("show");
+    return;
+  }
+  if (!dateVal) {
+    errorBox.textContent = t("err_date");
+    errorBox.classList.add("show");
+    return;
+  }
+  const first = masterData[0].d, last = masterData[masterData.length - 1].d;
+  if (dateVal < first || dateVal > last) {
+    errorBox.textContent = t("err_range") + " " + first + " — " + last;
+    errorBox.classList.add("show");
+    return;
+  }
+
+  const np = nearestPoint(dateVal);
+  const shares = amount / np.c;
+  const nowValue = shares * CURRENT_PRICE;
+  const profit = nowValue - amount;
+  const percent = (profit / amount) * 100;
+  const sign = profit >= 0 ? "+" : "";
+
+  $("buyPrice").textContent = "$" + np.c.toFixed(2) + " (" + np.d + ")";
+  $("nowPrice").textContent = "$" + CURRENT_PRICE.toFixed(2) + " (" + CURRENT_DATE + ")";
+  $("sharesQty").textContent = shares.toFixed(4) + " " + t("shares_unit");
+  const pa = $("profitAmount");
+  const pp = $("profitPercent");
+  pa.textContent = sign + "$" + profit.toFixed(2) + " (" + t("total_word") + " $" + nowValue.toFixed(2) + ")";
+  pp.textContent = sign + percent.toFixed(2) + "% " + t("return_word");
+  pa.className = "amount " + (profit >= 0 ? "positive" : "negative");
+  pp.className = "percent " + (profit >= 0 ? "positive" : "negative");
+  resultBox.classList.add("show");
+});
+
+/* ================= 13. NEWS (по тикеру и языку; РУ — российские издания через Google News RU) ================= */
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function buildFeeds(ticker) {
+  const q = NEWS_QUERY[ticker] || NEWS_QUERY.TSLA;
+  // rss2json не принимает %2520 (двойное кодирование пробела) —
+  // поэтому пробел заменяем на '+', а кодируем только весь URL фида целиком
+  const qRu = q.ru.replace(/\s+/g, "+");
+  const qEn = q.en.replace(/\s+/g, "+");
+  const ruFeed = "https://news.google.com/rss/search?q=" + qRu + "&hl=ru&gl=RU&ceid=RU:ru";
+  const enFeed = "https://news.google.com/rss/search?q=" + qEn + "&hl=en&gl=US&ceid=US:en";
+  // РУ: сначала российская лента (агрегирует РБК, Коммерсантъ, Ведомости и др.), затем запасная EN
+  return currentLang === "ru" ? [ruFeed, enFeed] : [enFeed, ruFeed];
+}
+
+async function loadNews(ticker) {
+  const gen = ++newsGen;
+  const list = $("newsList");
+  list.innerHTML = '<div class="news-loading">' + t("news_loading") + "</div>";
+  const feeds = buildFeeds(ticker);
+  const locale = currentLang === "ru" ? "ru-RU" : "en-US";
+
+  for (const feed of feeds) {
+    const api = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feed);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(api, { cache: "no-store" });
+        const json = await res.json();
+        if (gen !== newsGen) return; // тикер/язык уже сменили
+        if (json.status !== "ok" || !json.items || !json.items.length) throw new Error("empty");
+        list.innerHTML = "";
+        json.items.slice(0, 6).forEach(item => {
+          const a = document.createElement("a");
+          a.className = "news-item";
+          a.href = item.link;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          const dt = new Date(item.pubDate);
+          const ds = isNaN(dt) ? "" : dt.toLocaleString(locale, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+          a.innerHTML = '<div class="news-title">' + escapeHtml(item.title) + '</div>' +
+                        '<div class="news-meta">' + escapeHtml(ds) + "</div>";
+          list.appendChild(a);
+        });
+        return;
+      } catch (e) {
+        if (gen !== newsGen) return;
+        await new Promise(r => setTimeout(r, 900));
+      }
+    }
+  }
+  if (gen === newsGen) {
+    list.innerHTML = '<div class="news-loading">' + t("news_error") + "</div>";
+  }
+}
+
+/* ================= 14. INIT ================= */
+(async function init() {
+  applyLang(currentLang);   // фикс бага: активная кнопка языка = язык текста страницы
+  applyTheme(currentTheme);
+  await initDB();
+  loadData("TSLA");         // 5Y активна по умолчанию — applyRangeFilter отфильтрует ровно 5 лет
+  loadNews("TSLA");
+})();
+</script>
+</body>
+</html>
